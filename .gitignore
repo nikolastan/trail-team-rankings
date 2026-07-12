@@ -438,3 +438,7 @@ FodyWeavers.xsd
 *.db
 *.sqlite
 appsettings.Development.json
+
+# Private sample data — real registry exports contain athletes' personal data
+# (names, birth dates, medical status); keep them local, never commit.
+docs/samples/private/

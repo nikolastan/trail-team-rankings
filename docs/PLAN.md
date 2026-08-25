@@ -40,20 +40,36 @@ Expected columns (row 2, Cyrillic):
 
 ### 2.2 Scraped input
 
-**RunTrace** — server-rendered HTML table. Primary scrape target for Avala and similar Serbian events.
+**RunTrace** — server-rendered HTML, **confirmed by recon** (July 2026): a plain GET
+(no JavaScript) returns a fully populated jQuery **DataTables** table
+(`<table id="results-table">`) with every runner row already in `<tbody>`. All rows
+ship in one response (client-side paging only), so no pagination handling is needed.
+Parsed with AngleSharp.
 
-Fields used from results table:
+The live table has **15 columns**; we map the ones we need **by header text**
+(order-independent, like the registry reader):
 
-| RunTrace column | Use |
-|-----------------|-----|
-| Gen | Overall place (confirm with mentor for points) |
-| Kat | Category place |
-| Ime | Runner name |
-| Broj | Bib (race-specific; not used for registry matching) |
-| Kategorija | Category + Senior/Junior split |
-| Tim | Club / team |
-| Vreme | Finish time (display only) |
-| Status | Finished, DNF, DNS, Racing, etc. |
+| # | Header | Use |
+|---|--------|-----|
+| 0 | Gen | Overall place |
+| 1 | Kat | Category place |
+| 2 | Ime | Runner name (Latin only — see 4.2) |
+| 3 | Država | ignored |
+| 4 | Broj | Bib — cell repeats the value; take the clean one. Race-specific, not used for matching |
+| 5 | Kategorija | Category → division + gender. Cell also carries a `["id"]` prefix to strip |
+| 6 | Tim | Club / team |
+| 7–9 | KT1, KT2, Cilj | Checkpoint splits — ignored |
+| 10 | Vreme | Finish time (display only) |
+| 11 | Tempo | Pace — ignored |
+| 12 | Status | Result status (see below) |
+| 13–14 | — | Action icons — ignored |
+
+Both **Gen** and **Kat** are captured; which one awards points is decided in the
+pipeline (open question §12 #1), not in the scraper.
+
+**Status vocabulary** (from the live filter): `Finished, Racing, Ready, OOR, DNF,
+DISQ, DNS, Late, Registered, Pending, Rejected`. Only `Finished` scores; the rest are
+surfaced in the Excluded panel. `Unknown` is the safe fallback for anything unrecognized.
 
 ### 2.3 Reference template (bundled, not user-uploaded)
 
@@ -126,6 +142,13 @@ There is **no shared ID** (no JMBG on either side; TLS and booklet numbers exist
 | **Primary** | Normalized name match (Cyrillic ↔ Latin transliteration) |
 | **Tie-breaker** | Club name fuzzy match |
 | **Not used** | Bib, TLS, booklet for cross-system linking |
+
+**Script bridge (mandatory).** Recon confirmed RunTrace serves names in **Latin only**
+(`Đuro Borbelj`); there is no Cyrillic variant (`selected_lang=sr-Cyrl` → HTTP 500,
+`sr` / `sr-Latn` → Latin). The registry is **Cyrillic** (`Ђуро Борбељ`). Matching
+therefore *requires* Latin↔Cyrillic transliteration (near 1:1 Serbian mapping, incl.
+digraphs `lj→љ nj→њ dž→џ` and diacritics `đ→ђ č→ч ć→ћ š→ш ž→ж`) before name comparison —
+it is not optional.
 
 ### 4.3 Excluded runners (UI)
 
@@ -257,7 +280,7 @@ trail-team-rankings/
 
 | Project | Responsibility |
 |---------|----------------|
-| **Core** | `Runner`, `RegisteredAthlete`, `TeamStanding`, `DivisionResults`, `PointsLadder`, `TeamRankingService`, `CategoryDivisionMapper`, eligibility enums |
+| **Core** | `RaceRunner`, `ScrapedRunner`, `RegisteredAthlete`, `MedicalClearance`, `TeamStanding`, `DivisionResults`, `PointsLadder`, `TeamRankingService`, `CategoryDivisionMapper`, `GenderMapper`, `RaceStatusParser`, `MedicalClearanceParser`, status/eligibility enums |
 | **Infrastructure** | `RunTraceResultsProvider` (AngleSharp), `RegistryExcelReader` (ClosedXML), `ExcelResultsExporter`, `PdfResultsExporter` |
 | **App** | Views, ViewModels, setup gate, tabs, export dialog, `DispatcherTimer` for live poll |
 | **Tests** | Ranking rules, points ladder, eligibility, edge cases (no network in CI) |
@@ -265,7 +288,7 @@ trail-team-rankings/
 ### 7.3 Key interfaces
 
 ```text
-IRaceResultsProvider     → scrape RunTrace URL → runners
+IRaceResultsProvider     → scrape RunTrace URL → raw scraped runners
 IRegistryReader          → parse registry Excel → registered athletes
 IRankingService          → eligible runners → DivisionResults
 IResultsExporter         → DivisionResults → file (Excel, PDF, …)
@@ -306,10 +329,10 @@ RaceResults
 | Phase | Goal | Deliverable |
 |-------|------|-------------|
 | **0** | Done | Solution skeleton, NuGet restore, build green |
-| **1** | Core rules | `PointsLadder`, `TeamRankingService`, Senior/Junior split, unit tests |
-| **2** | Registry | `RegistryExcelReader`, medical validation, format validation |
+| **1** | ✅ Done | `PointsLadder`, `TeamRankingService`, Senior/Junior split, unit tests |
+| **2** | ✅ Done | `RegistryExcelReader`, medical validation, format validation |
 | **3** | Matching | Name normalization, club tie-break, excluded-runner reasons |
-| **4** | Scraper | `RunTraceResultsProvider` — parse Avala URL into `Runner` models |
+| **4** | Scraper (in progress) | `RunTraceResultsProvider` — parse Avala URL into `ScrapedRunner` models |
 | **5** | Pipeline | Registry + scrape → `RaceResults` end-to-end (console or test harness) |
 | **6** | WPF display | Setup gate, team tabs, individuals, all runners, excluded panel |
 | **7** | Excel export | `ExcelResultsExporter` matching reference template |
@@ -318,13 +341,26 @@ RaceResults
 
 **Principle:** Ship vertical slices early. Phase 5 should produce correct `RaceResults` before investing heavily in UI polish.
 
-### Phase 1 detail (next up)
+### Phase 1 detail (done)
 
 - `Runner`, `RegisteredAthlete`, `TeamStanding`, `IndividualResult`, `ExcludedRunner`
 - `RaceStatus`, `EligibilityStatus`, `Division` enums
 - `PointsLadder.GetPoints(int place)`
 - `TeamRankingService.RankTeams(IEnumerable<ScoredRunner>, …)`
 - xUnit: 2M+1F selection, incomplete teams, tie cases, Senior/Junior isolation
+
+### Phase 4 detail (scraper)
+
+- `RaceStatus`: add `Registered`, `Pending`, `Rejected` (full RunTrace vocabulary)
+- `ScrapedRunner` raw model — `Name, Bib, CategoryLabel, Club, FinishTime, StatusText,
+  OverallPlace?, CategoryPlace?` — eligibility / gender / division not yet resolved
+- `GenderMapper` (category label → gender), beside `CategoryDivisionMapper`
+- `RaceStatusParser` (status text → `RaceStatus`, `Unknown` fallback)
+- `IRaceResultsProvider.GetResultsAsync(url, CancellationToken)` → `RaceScrapeResult`
+  (runners + errors + metadata) — async for live polling
+- `RunTraceResultsProvider` (AngleSharp): pure `Parse(html)` split from the `HttpClient`
+  fetch; map 15 columns by header; clean the `Broj` / `Kategorija` cells
+- xUnit on a trimmed HTML fixture (no live network in CI)
 
 ### Phase 6 detail (UI)
 
@@ -397,6 +433,11 @@ Architecture should allow additional `IRaceResultsProvider` implementations late
 
 Document answers in this file or a future `docs/SDD.md` when confirmed.
 
+**Confirmed by recon (July 2026):** RunTrace is server-rendered; categories are
+`Apsolutna M/Ž, Juniori, Juniorke, Veterani, Veteranke`; the full status set is known
+(11 values); names are Latin-only. Q1 (Gen vs Kat) stays open — the scraper captures
+both, so switching is a one-line pipeline change.
+
 ---
 
 ## 13. Success criteria (v1 demo)
@@ -419,4 +460,4 @@ Document answers in this file or a future `docs/SDD.md` when confirmed.
 
 ---
 
-*Last updated: June 2026*
+*Last updated: July 2026*

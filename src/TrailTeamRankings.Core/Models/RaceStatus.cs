@@ -15,4 +15,7 @@ public enum RaceStatus
     Disq,
     Dns,
     Late,
+    Registered,
+    Pending,
+    Rejected,
 }

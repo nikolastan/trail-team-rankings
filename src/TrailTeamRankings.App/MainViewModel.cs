@@ -1,0 +1,238 @@
+using System.IO;
+using System.Windows.Threading;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using TrailTeamRankings.Core.Models;
+using TrailTeamRankings.Core.Racing;
+using TrailTeamRankings.Core.Registry;
+using TrailTeamRankings.Core.Results;
+
+namespace TrailTeamRankings.App;
+
+/// <summary>
+/// Drives the main window: the setup gate (registry, URL, date), the refresh /
+/// live-poll commands, and the resolved <see cref="RaceResults"/> projected into
+/// the collections the tabs bind to.
+/// </summary>
+public partial class MainViewModel : ObservableObject
+{
+    private readonly IRegistryReader _registryReader;
+    private readonly IRaceResultsProvider _resultsProvider;
+    private readonly DispatcherTimer _liveTimer;
+
+    private IReadOnlyList<RegisteredAthlete> _athletes = [];
+
+    public MainViewModel(IRegistryReader registryReader, IRaceResultsProvider resultsProvider)
+    {
+        _registryReader = registryReader;
+        _resultsProvider = resultsProvider;
+
+        _liveTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(45) };
+        _liveTimer.Tick += async (_, _) =>
+        {
+            if (RefreshCommand.CanExecute(null))
+            {
+                await RefreshCommand.ExecuteAsync(null);
+            }
+        };
+    }
+
+    // ---- Setup gate ----
+    [ObservableProperty]
+    private string? registryPath;
+
+    [ObservableProperty]
+    private int registryAthleteCount;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(RefreshCommand))]
+    private bool registryLoaded;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(RefreshCommand))]
+    private string raceUrl = "https://runtrace.net/avala2026?category_id=&race_id=1123&selected_lang=sr-Latn";
+
+    [ObservableProperty]
+    private DateTime raceDate = DateTime.Today;
+
+    // ---- Status ----
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(RefreshCommand))]
+    private bool isBusy;
+
+    [ObservableProperty]
+    private string? statusMessage;
+
+    [ObservableProperty]
+    private string? errorMessage;
+
+    [ObservableProperty]
+    private DateTimeOffset? lastUpdated;
+
+    [ObservableProperty]
+    private bool liveMode;
+
+    // ---- Results (projected for the tabs) ----
+    [ObservableProperty]
+    private RaceResults? results;
+
+    [ObservableProperty]
+    private IReadOnlyList<TeamRow> senioriTeams = [];
+
+    [ObservableProperty]
+    private IReadOnlyList<TeamRow> junioriTeams = [];
+
+    [ObservableProperty]
+    private IReadOnlyList<RaceRunner> allRunners = [];
+
+    [ObservableProperty]
+    private IReadOnlyList<ExcludedRunner> excludedRunners = [];
+
+    [ObservableProperty]
+    private string excludedHeader = "Excluded";
+
+    [ObservableProperty]
+    private Division individualsDivision = Division.Seniori;
+
+    [ObservableProperty]
+    private IReadOnlyList<IndividualResult> menIndividuals = [];
+
+    [ObservableProperty]
+    private IReadOnlyList<IndividualResult> womenIndividuals = [];
+
+    public IReadOnlyList<Division> Divisions { get; } = [Division.Seniori, Division.Juniori];
+
+    // ---- Commands ----
+    [RelayCommand]
+    private async Task LoadRegistry(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return;
+        }
+
+        ErrorMessage = null;
+        IsBusy = true;
+        StatusMessage = "Loading registry…";
+        try
+        {
+            var result = await Task.Run(() =>
+            {
+                using var stream = File.OpenRead(path);
+                return _registryReader.Read(stream);
+            });
+
+            if (!result.IsValid)
+            {
+                RegistryLoaded = false;
+                ErrorMessage = "Registry not loaded: " + string.Join(" ", result.Errors);
+                return;
+            }
+
+            _athletes = result.Athletes;
+            RegistryPath = path;
+            RegistryAthleteCount = result.Athletes.Count;
+            RegistryLoaded = true;
+            StatusMessage = $"Registry loaded: {result.Athletes.Count} athletes.";
+        }
+        catch (Exception ex)
+        {
+            RegistryLoaded = false;
+            ErrorMessage = ex.Message;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanRefresh))]
+    private async Task Refresh()
+    {
+        ErrorMessage = null;
+        IsBusy = true;
+        StatusMessage = "Fetching results…";
+        try
+        {
+            var scrape = await _resultsProvider.GetResultsAsync(RaceUrl);
+            if (!scrape.IsValid)
+            {
+                ErrorMessage = "Scrape failed: " + string.Join(" ", scrape.Errors);
+                return;
+            }
+
+            var raceDateOnly = DateOnly.FromDateTime(RaceDate);
+            var built = await Task.Run(() =>
+                RaceResultsBuilder.Build(_athletes, scrape.Runners, raceDateOnly, scrape.RaceTitle));
+
+            Results = built;
+            LastUpdated = DateTimeOffset.Now;
+            StatusMessage = $"{built.AllRunners.Count} runners" +
+                            (scrape.RaceTitle is { Length: > 0 } title ? $" • {title}" : "");
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    private bool CanRefresh() => RegistryLoaded && !IsBusy && !string.IsNullOrWhiteSpace(RaceUrl);
+
+    // ---- Projection of Results into bound collections ----
+    partial void OnResultsChanged(RaceResults? value)
+    {
+        if (value is null)
+        {
+            SenioriTeams = [];
+            JunioriTeams = [];
+            AllRunners = [];
+            ExcludedRunners = [];
+            MenIndividuals = [];
+            WomenIndividuals = [];
+            ExcludedHeader = "Excluded";
+            return;
+        }
+
+        SenioriTeams = value.Seniori.TeamStandings.Select(TeamRow.From).ToList();
+        JunioriTeams = value.Juniori.TeamStandings.Select(TeamRow.From).ToList();
+        AllRunners = value.AllRunners;
+
+        var excluded = value.Seniori.ExcludedRunners
+            .Concat(value.Juniori.ExcludedRunners)
+            .Concat(value.UnclassifiedExcluded)
+            .ToList();
+        ExcludedRunners = excluded;
+        ExcludedHeader = $"Excluded ({excluded.Count})";
+
+        UpdateIndividuals();
+    }
+
+    partial void OnIndividualsDivisionChanged(Division value) => UpdateIndividuals();
+
+    private void UpdateIndividuals()
+    {
+        var division = Results?.For(IndividualsDivision);
+        MenIndividuals = division?.MaleIndividuals ?? [];
+        WomenIndividuals = division?.FemaleIndividuals ?? [];
+    }
+
+    partial void OnLiveModeChanged(bool value)
+    {
+        if (value)
+        {
+            _liveTimer.Start();
+            if (RefreshCommand.CanExecute(null))
+            {
+                RefreshCommand.Execute(null);
+            }
+        }
+        else
+        {
+            _liveTimer.Stop();
+        }
+    }
+}

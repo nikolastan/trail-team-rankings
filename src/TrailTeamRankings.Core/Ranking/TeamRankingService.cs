@@ -1,5 +1,6 @@
 using TrailTeamRankings.Core.Models;
 using TrailTeamRankings.Core.Scoring;
+using TrailTeamRankings.Core.Text;
 
 namespace TrailTeamRankings.Core.Ranking;
 
@@ -25,12 +26,16 @@ public sealed class TeamRankingService
         var standings = runners
             .Where(runner =>
                 runner.Division == division &&
-                runner is { 
+                runner is {
                     Status: RaceStatus.Finished,
-                    IsEligible: true, 
-                    Place: >= 1 
+                    IsEligible: true,
+                    Place: >= 1
                 })
-            .GroupBy(runner => runner.Club, StringComparer.OrdinalIgnoreCase)
+            // Group clubs by a normalized key so inconsistent spellings (case,
+            // diacritics like "Bašta"/"Basta") count as one team. Runners with no
+            // club name cannot be on a club team and are dropped from grouping.
+            .GroupBy(runner => ClubNormalizer.Normalize(runner.Club))
+            .Where(group => group.Key.Length > 0)
             .Select(group => BuildStanding(division, group))
             .ToList();
 
@@ -54,12 +59,22 @@ public sealed class TeamRankingService
         return new TeamStanding
         {
             Division = division,
-            Club = runners[0].Club,
+            Club = SelectDisplayName(runners),
             CountingMales = males,
             CountingFemale = females.FirstOrDefault(),
             IsComplete = males.Count == CountingMaleCount && females.Count == CountingFemaleCount,
         };
     }
+
+    // Picks a representative original spelling to display for a grouped club:
+    // the most common spelling, then the longest (most descriptive), then ordinal.
+    private static string SelectDisplayName(IEnumerable<RaceRunner> runners) =>
+        runners
+            .GroupBy(runner => runner.Club)
+            .OrderByDescending(group => group.Count())
+            .ThenByDescending(group => group.Key.Length)
+            .ThenBy(group => group.Key, StringComparer.Ordinal)
+            .First().Key;
 
     private static List<CountingRunner> SelectCounting(
         IEnumerable<RaceRunner> runners, Gender gender, int count) =>

@@ -192,4 +192,46 @@ public class TeamRankingServiceTests
     {
         Assert.Empty(_service.RankTeams([], Division.Seniori));
     }
+
+    [Fact]
+    public void RankTeams_GroupsClubs_IgnoringCaseAndDiacritics()
+    {
+        var runners = new[]
+        {
+            Runner("PK Tara Bajina Bašta", Gender.Male, 1),
+            Runner("PK Tara Bajina Basta", Gender.Male, 2),
+        };
+
+        var standing = Assert.Single(_service.RankTeams(runners, Division.Seniori));
+
+        Assert.Equal(100 + 88, standing.TotalPoints);
+        Assert.Equal(2, standing.CountingMales.Count);
+    }
+
+    [Fact]
+    public void RankTeams_ExcludesRunnersWithoutClub()
+    {
+        var runners = new[]
+        {
+            Runner("", Gender.Male, 1),
+            Runner("   ", Gender.Male, 2),
+        };
+
+        Assert.Empty(_service.RankTeams(runners, Division.Seniori));
+    }
+
+    [Fact]
+    public void RankTeams_DisplaysMostCommonClubSpelling()
+    {
+        var runners = new[]
+        {
+            Runner("PSK Balkan", Gender.Male, 1),
+            Runner("PSK Balkan", Gender.Male, 2),
+            Runner("psk balkan", Gender.Female, 1),
+        };
+
+        var standing = Assert.Single(_service.RankTeams(runners, Division.Seniori));
+
+        Assert.Equal("PSK Balkan", standing.Club);
+    }
 }

@@ -1,6 +1,7 @@
 using System.Net.Http;
 using System.Windows;
 using Microsoft.Win32;
+using TrailTeamRankings.Infrastructure.Export;
 using TrailTeamRankings.Infrastructure.Racing;
 using TrailTeamRankings.Infrastructure.Registry;
 
@@ -21,7 +22,8 @@ public partial class MainWindow : Window
         InitializeComponent();
         _viewModel = new MainViewModel(
             new RegistryExcelReader(),
-            new RunTraceResultsProvider(HttpClient));
+            new RunTraceResultsProvider(HttpClient),
+            new ExcelResultsExporter());
         DataContext = _viewModel;
     }
 
@@ -36,6 +38,22 @@ public partial class MainWindow : Window
         if (dialog.ShowDialog() == true)
         {
             _viewModel.LoadRegistryCommand.Execute(dialog.FileName);
+        }
+    }
+
+    private void ExportExcel_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new SaveFileDialog
+        {
+            Title = "Export results to Excel",
+            Filter = "Excel workbook (*.xlsx)|*.xlsx",
+            FileName = "trail-team-rankings.xlsx",
+            DefaultExt = "xlsx",
+        };
+
+        if (dialog.ShowDialog() == true)
+        {
+            _viewModel.ExportCommand.Execute(dialog.FileName);
         }
     }
 }

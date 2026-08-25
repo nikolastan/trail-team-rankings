@@ -55,6 +55,8 @@
                 <StackPanel Grid.Row="2" Grid.Column="2" Orientation="Horizontal">
                     <CheckBox Content="Live" IsChecked="{Binding LiveMode}" VerticalAlignment="Center" Margin="0,0,12,0" />
                     <Button Content="Refresh" Command="{Binding RefreshCommand}" Padding="18,4" FontWeight="Bold" />
+                    <Button Content="Export Excel…" Click="ExportExcel_Click" IsEnabled="{Binding HasResults}"
+                            Padding="14,4" Margin="8,0,0,0" />
                 </StackPanel>
             </Grid>
         </Border>

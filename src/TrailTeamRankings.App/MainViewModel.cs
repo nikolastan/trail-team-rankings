@@ -18,14 +18,19 @@ public partial class MainViewModel : ObservableObject
 {
     private readonly IRegistryReader _registryReader;
     private readonly IRaceResultsProvider _resultsProvider;
+    private readonly IResultsExporter _excelExporter;
     private readonly DispatcherTimer _liveTimer;
 
     private IReadOnlyList<RegisteredAthlete> _athletes = [];
 
-    public MainViewModel(IRegistryReader registryReader, IRaceResultsProvider resultsProvider)
+    public MainViewModel(
+        IRegistryReader registryReader,
+        IRaceResultsProvider resultsProvider,
+        IResultsExporter excelExporter)
     {
         _registryReader = registryReader;
         _resultsProvider = resultsProvider;
+        _excelExporter = excelExporter;
 
         _liveTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(45) };
         _liveTimer.Tick += async (_, _) =>
@@ -75,6 +80,9 @@ public partial class MainViewModel : ObservableObject
     // ---- Results (projected for the tabs) ----
     [ObservableProperty]
     private RaceResults? results;
+
+    [ObservableProperty]
+    private bool hasResults;
 
     [ObservableProperty]
     private IReadOnlyList<TeamRow> senioriTeams = [];
@@ -182,9 +190,42 @@ public partial class MainViewModel : ObservableObject
 
     private bool CanRefresh() => RegistryLoaded && !IsBusy && !string.IsNullOrWhiteSpace(RaceUrl);
 
+    [RelayCommand]
+    private async Task Export(string? path)
+    {
+        if (Results is null || string.IsNullOrWhiteSpace(path))
+        {
+            return;
+        }
+
+        var results = Results;
+        ErrorMessage = null;
+        IsBusy = true;
+        StatusMessage = "Exporting…";
+        try
+        {
+            await Task.Run(() =>
+            {
+                using var stream = File.Create(path);
+                _excelExporter.Export(results, stream);
+            });
+            StatusMessage = $"Exported to {path}";
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = "Export failed: " + ex.Message;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
     // ---- Projection of Results into bound collections ----
     partial void OnResultsChanged(RaceResults? value)
     {
+        HasResults = value is not null;
+
         if (value is null)
         {
             SenioriTeams = [];

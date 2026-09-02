@@ -57,6 +57,8 @@
                     <Button Content="Refresh" Command="{Binding RefreshCommand}" Padding="18,4" FontWeight="Bold" />
                     <Button Content="Export Excel…" Click="ExportExcel_Click" IsEnabled="{Binding HasResults}"
                             Padding="14,4" Margin="8,0,0,0" />
+                    <Button Content="Export PDF…" Click="ExportPdf_Click" IsEnabled="{Binding HasResults}"
+                            Padding="14,4" Margin="6,0,0,0" />
                 </StackPanel>
             </Grid>
         </Border>

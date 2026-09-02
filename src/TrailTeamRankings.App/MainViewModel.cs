@@ -6,6 +6,7 @@ using TrailTeamRankings.Core.Models;
 using TrailTeamRankings.Core.Racing;
 using TrailTeamRankings.Core.Registry;
 using TrailTeamRankings.Core.Results;
+using TrailTeamRankings.Core.Settings;
 
 namespace TrailTeamRankings.App;
 
@@ -19,18 +20,25 @@ public partial class MainViewModel : ObservableObject
     private readonly IRegistryReader _registryReader;
     private readonly IRaceResultsProvider _resultsProvider;
     private readonly IResultsExporter _excelExporter;
+    private readonly IResultsExporter _pdfExporter;
+    private readonly IUserSettingsStore _settingsStore;
     private readonly DispatcherTimer _liveTimer;
 
     private IReadOnlyList<RegisteredAthlete> _athletes = [];
+    private string? _exportDirectory;
 
     public MainViewModel(
         IRegistryReader registryReader,
         IRaceResultsProvider resultsProvider,
-        IResultsExporter excelExporter)
+        IResultsExporter excelExporter,
+        IResultsExporter pdfExporter,
+        IUserSettingsStore settingsStore)
     {
         _registryReader = registryReader;
         _resultsProvider = resultsProvider;
         _excelExporter = excelExporter;
+        _pdfExporter = pdfExporter;
+        _settingsStore = settingsStore;
 
         _liveTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(45) };
         _liveTimer.Tick += async (_, _) =>
@@ -40,6 +48,47 @@ public partial class MainViewModel : ObservableObject
                 await RefreshCommand.ExecuteAsync(null);
             }
         };
+
+        ApplySavedSettings();
+    }
+
+    /// <summary>Directory of the last export, used to pre-select the save dialog.</summary>
+    public string? ExportDirectory => _exportDirectory;
+
+    private void ApplySavedSettings()
+    {
+        var settings = _settingsStore.Load();
+
+        if (!string.IsNullOrWhiteSpace(settings.RaceUrl))
+        {
+            RaceUrl = settings.RaceUrl;
+        }
+
+        if (settings.RaceDate is { } savedDate)
+        {
+            RaceDate = savedDate;
+        }
+
+        RegistryPath = settings.RegistryPath;
+        _exportDirectory = settings.ExportDirectory;
+    }
+
+    /// <summary>Persists the current inputs. Called on shutdown and after key actions.</summary>
+    public void SaveSettings() => _settingsStore.Save(new UserSettings
+    {
+        RegistryPath = RegistryPath,
+        RaceUrl = RaceUrl,
+        RaceDate = RaceDate,
+        ExportDirectory = _exportDirectory,
+    });
+
+    /// <summary>Loads the previously used registry automatically if it still exists.</summary>
+    public void TryLoadSavedRegistry()
+    {
+        if (!string.IsNullOrWhiteSpace(RegistryPath) && File.Exists(RegistryPath))
+        {
+            LoadRegistryCommand.Execute(RegistryPath);
+        }
     }
 
     // ---- Setup gate ----
@@ -142,6 +191,7 @@ public partial class MainViewModel : ObservableObject
             RegistryAthleteCount = result.Athletes.Count;
             RegistryLoaded = true;
             StatusMessage = $"Registry loaded: {result.Athletes.Count} athletes.";
+            SaveSettings();
         }
         catch (Exception ex)
         {
@@ -191,7 +241,12 @@ public partial class MainViewModel : ObservableObject
     private bool CanRefresh() => RegistryLoaded && !IsBusy && !string.IsNullOrWhiteSpace(RaceUrl);
 
     [RelayCommand]
-    private async Task Export(string? path)
+    private Task ExportExcel(string? path) => ExportWith(_excelExporter, path);
+
+    [RelayCommand]
+    private Task ExportPdf(string? path) => ExportWith(_pdfExporter, path);
+
+    private async Task ExportWith(IResultsExporter exporter, string? path)
     {
         if (Results is null || string.IsNullOrWhiteSpace(path))
         {
@@ -207,9 +262,11 @@ public partial class MainViewModel : ObservableObject
             await Task.Run(() =>
             {
                 using var stream = File.Create(path);
-                _excelExporter.Export(results, stream);
+                exporter.Export(results, stream);
             });
+            _exportDirectory = Path.GetDirectoryName(path);
             StatusMessage = $"Exported to {path}";
+            SaveSettings();
         }
         catch (Exception ex)
         {

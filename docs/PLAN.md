@@ -331,13 +331,13 @@ RaceResults
 | **0** | Done | Solution skeleton, NuGet restore, build green |
 | **1** | ✅ Done | `PointsLadder`, `TeamRankingService`, Senior/Junior split, unit tests |
 | **2** | ✅ Done | `RegistryExcelReader`, medical validation, format validation |
-| **3** | Matching | Name normalization, club tie-break, excluded-runner reasons |
-| **4** | Scraper (in progress) | `RunTraceResultsProvider` — parse Avala URL into `ScrapedRunner` models |
-| **5** | Pipeline | Registry + scrape → `RaceResults` end-to-end (console or test harness) |
-| **6** | WPF display | Setup gate, team tabs, individuals, all runners, excluded panel |
-| **7** | Excel export | `ExcelResultsExporter` matching reference template |
-| **8** | PDF export | `PdfResultsExporter` — printable team report |
-| **9** | Polish | Live poll, errors, last-used paths, README, SDD updates |
+| **3** | ✅ Done | Name normalization, club tie-break, excluded-runner reasons |
+| **4** | ✅ Done | `RunTraceResultsProvider` — parse Avala URL into `ScrapedRunner` models |
+| **5** | ✅ Done | Registry + scrape → `RaceResults` end-to-end (console + test harness) |
+| **6** | ✅ Done | Setup gate, team tabs, individuals, all runners, excluded panel |
+| **7** | ✅ Done | `ExcelResultsExporter` matching reference template |
+| **8** | ✅ Done | `PdfResultsExporter` — printable team report |
+| **9** | ✅ Done | Live poll, error banner, last-used paths (settings), README |
 
 **Principle:** Ship vertical slices early. Phase 5 should produce correct `RaceResults` before investing heavily in UI polish.
 

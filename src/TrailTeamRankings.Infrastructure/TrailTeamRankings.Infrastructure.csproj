@@ -13,6 +13,7 @@
     <ItemGroup>
       <PackageReference Include="AngleSharp" Version="1.5.0" />
       <PackageReference Include="ClosedXML" Version="0.105.0" />
+      <PackageReference Include="QuestPDF" Version="2026.8.0" />
     </ItemGroup>
 
 </Project>

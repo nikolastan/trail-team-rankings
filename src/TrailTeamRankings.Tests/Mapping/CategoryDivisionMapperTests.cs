@@ -50,4 +50,16 @@ public class CategoryDivisionMapperTests
         Assert.True(CategoryDivisionMapper.TryMap("Apsolutna M", out var division));
         Assert.Equal(Division.Seniori, division);
     }
+
+    [Theory]
+    [InlineData("M Gen")]
+    [InlineData("Ž Gen")]
+    [InlineData("M 40-49")]
+    [InlineData("Ž Elite")]
+    [InlineData("Seniori")]
+    [InlineData("Seniorke")]
+    public void Map_TreatsRecognizedNonJuniorCategoriesAsSeniori(string category)
+    {
+        Assert.Equal(Division.Seniori, CategoryDivisionMapper.Map(category));
+    }
 }

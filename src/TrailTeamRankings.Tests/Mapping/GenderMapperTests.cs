@@ -40,4 +40,18 @@ public class GenderMapperTests
     {
         Assert.False(GenderMapper.TryMap("Rekreativci", out _));
     }
+
+    [Theory]
+    [InlineData("M Gen", Gender.Male)]
+    [InlineData("Ž Gen", Gender.Female)]
+    [InlineData("M 40-49", Gender.Male)]
+    [InlineData("Ž 30-39", Gender.Female)]
+    [InlineData("M Elite", Gender.Male)]
+    [InlineData("Ž Elite", Gender.Female)]
+    [InlineData("Seniori", Gender.Male)]
+    [InlineData("Seniorke", Gender.Female)]
+    public void Map_ResolvesPrefixedAndGeneralCategories(string category, Gender expected)
+    {
+        Assert.Equal(expected, GenderMapper.Map(category));
+    }
 }

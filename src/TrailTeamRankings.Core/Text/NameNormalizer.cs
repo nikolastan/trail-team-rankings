@@ -7,11 +7,11 @@ namespace TrailTeamRankings.Core.Text;
 /// sources (Cyrillic registry vs Latin RunTrace). The key is script-, case-,
 /// diacritic-, punctuation-, and word-order-independent:
 /// <list type="number">
-/// <item>transliterate Cyrillic → Latin,</item>
-/// <item>lower-case and fold diacritics to ASCII (č/ć→c, š→s, ž→z, đ→dj),</item>
+/// <item>transliterate Cyrillic → Latin and fold all diacritics to ASCII,</item>
 /// <item>keep only letters, split into words, sort them, join with single spaces.</item>
 /// </list>
-/// So "Ђуро Борбељ", "Borbelj Đuro" and "djuro borbelj" all share one key.
+/// So "Ђуро Борбељ", "Borbelj Đuro", "djuro borbelj" — and now "Máté" vs "Mate" —
+/// all share one key.
 /// </summary>
 public static class NameNormalizer
 {
@@ -22,32 +22,12 @@ public static class NameNormalizer
             return string.Empty;
         }
 
-        var latin = SerbianTransliterator.ToLatin(name).ToLowerInvariant();
+        var folded = TextNormalization.Latinize(name);
 
-        var builder = new StringBuilder(latin.Length + 2);
-        foreach (var ch in latin)
+        var builder = new StringBuilder(folded.Length);
+        foreach (var ch in folded)
         {
-            switch (ch)
-            {
-                case 'č' or 'ć':
-                    builder.Append('c');
-                    break;
-                case 'š':
-                    builder.Append('s');
-                    break;
-                case 'ž':
-                    builder.Append('z');
-                    break;
-                case 'đ':
-                    builder.Append("dj");
-                    break;
-                case >= 'a' and <= 'z':
-                    builder.Append(ch);
-                    break;
-                default:
-                    builder.Append(' '); // any separator/punctuation/digit becomes a break
-                    break;
-            }
+            builder.Append(ch is >= 'a' and <= 'z' ? ch : ' ');
         }
 
         var tokens = builder.ToString().Split(' ', StringSplitOptions.RemoveEmptyEntries);

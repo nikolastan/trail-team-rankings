@@ -37,4 +37,47 @@ public class RegistryMatcherTests
         Assert.True(matcher.TryMatch("Marko Marković", "PSK Balkan Beograd", out var athlete));
         Assert.Equal("ПСК Балкан", athlete.Organization);
     }
+
+    [Fact]
+    public void TryMatch_SubsetName_MatchesWhenClubAgrees()
+    {
+        var matcher = new RegistryMatcher([Athlete("Александра Мијановић", "ПК Тара, Бајина Башта")]);
+
+        Assert.True(matcher.TryMatch("Aleksandra Coka Mijanović", "PK Tara Bajina Bašta", out var a));
+        Assert.Equal("Александра Мијановић", a.FullName);
+    }
+
+    [Fact]
+    public void TryMatch_SpellingVariant_MatchesWhenClubAgrees()
+    {
+        var matcher = new RegistryMatcher([Athlete("Викторија Келлер", "ПК Железничар, Инђија")]);
+
+        Assert.True(matcher.TryMatch("Victoria Keller", "PK Železničar Inđija", out var a));
+        Assert.Equal("Викторија Келлер", a.FullName);
+    }
+
+    [Fact]
+    public void TryMatch_FuzzyRequiresClub()
+    {
+        var matcher = new RegistryMatcher([Athlete("Викторија Келлер", "ПК Железничар")]);
+
+        Assert.False(matcher.TryMatch("Victoria Keller", null, out _));
+    }
+
+    [Fact]
+    public void TryMatch_FuzzyRejectsDifferentClub()
+    {
+        var matcher = new RegistryMatcher([Athlete("Викторија Келлер", "ПК Железничар")]);
+
+        Assert.False(matcher.TryMatch("Victoria Keller", "PSK Balkan Beograd", out _));
+    }
+
+    [Fact]
+    public void TryMatch_DoesNotFuzzyMatchDifferentFirstNames()
+    {
+        // Same surname and club, but "Darko" is not a typo of "Marko" (no shared prefix).
+        var matcher = new RegistryMatcher([Athlete("Марко Николић", "ПК Тара")]);
+
+        Assert.False(matcher.TryMatch("Darko Nikolić", "PK Tara", out _));
+    }
 }

@@ -4,9 +4,9 @@ namespace TrailTeamRankings.Core.Text;
 
 /// <summary>
 /// Canonical key for grouping club/team names that RunTrace spells
-/// inconsistently. Transliterates Cyrillic→Latin, lower-cases, folds diacritics,
-/// and keeps only letters/digits separated by single spaces — so
-/// "PK Tara Bajina Bašta" and "PK Tara Bajina Basta" collapse to one club.
+/// inconsistently. Transliterates Cyrillic→Latin, folds all diacritics, and keeps
+/// only letters/digits separated by single spaces — so "PK Tara Bajina Bašta" and
+/// "PK Tara Bajina Basta" collapse to one club.
 /// <para>
 /// Word order is preserved and location words are deliberately NOT stripped, so
 /// distinct-but-similar names such as "PSK Balkan" and "PSK Balkan Beograd" stay
@@ -22,33 +22,12 @@ public static class ClubNormalizer
             return string.Empty;
         }
 
-        var latin = SerbianTransliterator.ToLatin(club).ToLowerInvariant();
+        var folded = TextNormalization.Latinize(club);
 
-        var builder = new StringBuilder(latin.Length + 2);
-        foreach (var ch in latin)
+        var builder = new StringBuilder(folded.Length);
+        foreach (var ch in folded)
         {
-            switch (ch)
-            {
-                case 'č' or 'ć':
-                    builder.Append('c');
-                    break;
-                case 'š':
-                    builder.Append('s');
-                    break;
-                case 'ž':
-                    builder.Append('z');
-                    break;
-                case 'đ':
-                    builder.Append("dj");
-                    break;
-                case >= 'a' and <= 'z':
-                case >= '0' and <= '9':
-                    builder.Append(ch);
-                    break;
-                default:
-                    builder.Append(' ');
-                    break;
-            }
+            builder.Append(ch is (>= 'a' and <= 'z') or (>= '0' and <= '9') ? ch : ' ');
         }
 
         return string.Join(' ', builder.ToString().Split(' ', StringSplitOptions.RemoveEmptyEntries));

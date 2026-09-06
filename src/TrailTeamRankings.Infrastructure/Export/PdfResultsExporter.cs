@@ -3,6 +3,7 @@ using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 using TrailTeamRankings.Core.Ranking;
 using TrailTeamRankings.Core.Results;
+using TrailTeamRankings.Core.Scoring;
 
 namespace TrailTeamRankings.Infrastructure.Export;
 
@@ -188,6 +189,6 @@ public sealed class PdfResultsExporter : IResultsExporter
     private static void DataCell(IContainer cell, string text) =>
         cell.BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2).Padding(3).Text(text).FontSize(8);
 
-    private static string Slot(IReadOnlyList<CountingRunner> males, int index) =>
+    private static string Slot(IReadOnlyList<ScoredRunner> males, int index) =>
         index < males.Count ? males[index].Points.ToString() : "";
 }

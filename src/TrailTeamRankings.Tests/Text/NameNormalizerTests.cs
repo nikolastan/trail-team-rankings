@@ -44,4 +44,13 @@ public class NameNormalizerTests
     {
         Assert.Equal(string.Empty, NameNormalizer.Normalize(input));
     }
+
+    [Fact]
+    public void Normalize_FoldsForeignDiacritics()
+    {
+        // "Máté" (Hungarian á/é) must fold to "mate", matching the registry spelling.
+        Assert.Equal(
+            NameNormalizer.Normalize("Srđan Mate"),
+            NameNormalizer.Normalize("Srdjan Máté"));
+    }
 }

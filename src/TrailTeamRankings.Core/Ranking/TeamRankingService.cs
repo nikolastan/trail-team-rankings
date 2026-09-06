@@ -5,10 +5,10 @@ using TrailTeamRankings.Core.Text;
 namespace TrailTeamRankings.Core.Ranking;
 
 /// <summary>
-/// Computes club team standings for a division by summing the points of each
-/// club's top counting males and females. The number of counting runners per
-/// gender is defined by <see cref="CountingMaleCount"/> and
-/// <see cref="CountingFemaleCount"/>. Points come from <see cref="PointsLadder"/>.
+/// Computes club team standings from already-scored runners: for each club, sum
+/// the points of its top <see cref="CountingMaleCount"/> males and
+/// <see cref="CountingFemaleCount"/> female(s). The scoring (points by rank among
+/// eligible finishers) is done upstream by <see cref="ChampionshipScorer"/>.
 /// </summary>
 public sealed class TeamRankingService
 {
@@ -16,24 +16,15 @@ public sealed class TeamRankingService
     public const int CountingFemaleCount = 1;
 
     /// <summary>
-    /// Ranks teams within a single division. Only Finished, eligible runners with
-    /// a valid place are considered; other rows are ignored.
+    /// Ranks teams within a division from the division's scored runners. Runners
+    /// with no club name cannot be on a club team and are dropped; clubs are
+    /// grouped by a normalized key so inconsistent spellings count as one.
     /// </summary>
-    public IReadOnlyList<TeamStanding> RankTeams(IEnumerable<RaceRunner> runners, Division division)
+    public IReadOnlyList<TeamStanding> RankTeams(IEnumerable<ScoredRunner> scoredRunners, Division division)
     {
-        ArgumentNullException.ThrowIfNull(runners);
+        ArgumentNullException.ThrowIfNull(scoredRunners);
 
-        var standings = runners
-            .Where(runner =>
-                runner.Division == division &&
-                runner is {
-                    Status: RaceStatus.Finished,
-                    IsEligible: true,
-                    Place: >= 1
-                })
-            // Group clubs by a normalized key so inconsistent spellings (case,
-            // diacritics like "Bašta"/"Basta") count as one team. Runners with no
-            // club name cannot be on a club team and are dropped from grouping.
+        var standings = scoredRunners
             .GroupBy(runner => ClubNormalizer.Normalize(runner.Club))
             .Where(group => group.Key.Length > 0)
             .Select(group => BuildStanding(division, group))
@@ -49,7 +40,7 @@ public sealed class TeamRankingService
         return standings;
     }
 
-    private static TeamStanding BuildStanding(Division division, IEnumerable<RaceRunner> teamRunners)
+    private static TeamStanding BuildStanding(Division division, IEnumerable<ScoredRunner> teamRunners)
     {
         var runners = teamRunners.ToList();
 
@@ -68,7 +59,7 @@ public sealed class TeamRankingService
 
     // Picks a representative original spelling to display for a grouped club:
     // the most common spelling, then the longest (most descriptive), then ordinal.
-    private static string SelectDisplayName(IEnumerable<RaceRunner> runners) =>
+    private static string SelectDisplayName(IEnumerable<ScoredRunner> runners) =>
         runners
             .GroupBy(runner => runner.Club)
             .OrderByDescending(group => group.Count())
@@ -76,18 +67,12 @@ public sealed class TeamRankingService
             .ThenBy(group => group.Key, StringComparer.Ordinal)
             .First().Key;
 
-    private static List<CountingRunner> SelectCounting(
-        IEnumerable<RaceRunner> runners, Gender gender, int count) =>
+    private static List<ScoredRunner> SelectCounting(
+        IEnumerable<ScoredRunner> runners, Gender gender, int count) =>
         runners
             .Where(runner => runner.Gender == gender)
-            .Select(runner => new CountingRunner(
-                runner.Name,
-                runner.Club,
-                runner.Gender,
-                runner.Place,
-                PointsLadder.GetPoints(runner.Place)))
             .OrderByDescending(runner => runner.Points)
-            .ThenBy(runner => runner.Place)
+            .ThenBy(runner => runner.Rank)
             .ThenBy(runner => runner.Name, StringComparer.OrdinalIgnoreCase)
             .Take(count)
             .ToList();

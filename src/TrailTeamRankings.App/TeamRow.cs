@@ -1,4 +1,5 @@
 using TrailTeamRankings.Core.Ranking;
+using TrailTeamRankings.Core.Scoring;
 
 namespace TrailTeamRankings.App;
 
@@ -24,6 +25,6 @@ public sealed record TeamRow(
         standing.TotalPoints,
         standing.IsComplete);
 
-    private static string Slot(IReadOnlyList<CountingRunner> males, int index) =>
+    private static string Slot(IReadOnlyList<ScoredRunner> males, int index) =>
         index < males.Count ? males[index].Points.ToString() : "—";
 }

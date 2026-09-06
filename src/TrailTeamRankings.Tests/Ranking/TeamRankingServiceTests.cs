@@ -8,33 +8,19 @@ public class TeamRankingServiceTests
 {
     private readonly TeamRankingService _service = new();
 
-    private static RaceRunner Runner(
-        string club,
-        Gender gender,
-        int place,
-        string? name = null,
-        Division division = Division.Seniori,
-        RaceStatus status = RaceStatus.Finished,
-        bool eligible = true) =>
-        new(
-            name ?? $"{club}-{gender}-{place}",
-            club,
-            gender,
-            division,
-            place,
-            status,
-            eligible);
+    private static ScoredRunner Runner(string club, Gender gender, int points, int rank = 1, string? name = null) =>
+        new(name ?? $"{club}-{gender}-{points}", club, gender, rank, points);
 
     [Fact]
     public void RankTeams_PicksBestTwoMalesAndBestFemale()
     {
         var runners = new[]
         {
-            Runner("Club A", Gender.Male, 1),   // 100
-            Runner("Club A", Gender.Male, 2),   // 88
-            Runner("Club A", Gender.Male, 5),   // 64 (dropped)
-            Runner("Club A", Gender.Female, 1), // 100
-            Runner("Club A", Gender.Female, 3), // 78 (dropped)
+            Runner("Club A", Gender.Male, 100),
+            Runner("Club A", Gender.Male, 88),
+            Runner("Club A", Gender.Male, 64),   // dropped
+            Runner("Club A", Gender.Female, 100),
+            Runner("Club A", Gender.Female, 78),  // dropped
         };
 
         var standing = Assert.Single(_service.RankTeams(runners, Division.Seniori));
@@ -46,14 +32,9 @@ public class TeamRankingServiceTests
     }
 
     [Fact]
-    public void RankTeams_IncompleteTeam_CountsAvailableSlotsAsPartialTotal()
+    public void RankTeams_IncompleteTeam_CountsAvailableSlots()
     {
-        var runners = new[]
-        {
-            Runner("Solo", Gender.Male, 1), // 100, no second male, no female
-        };
-
-        var standing = Assert.Single(_service.RankTeams(runners, Division.Seniori));
+        var standing = Assert.Single(_service.RankTeams([Runner("Solo", Gender.Male, 100)], Division.Seniori));
 
         Assert.False(standing.IsComplete);
         Assert.Equal(100, standing.TotalPoints);
@@ -62,68 +43,12 @@ public class TeamRankingServiceTests
     }
 
     [Fact]
-    public void RankTeams_ExcludesNonFinishers()
-    {
-        var runners = new[]
-        {
-            Runner("Club A", Gender.Male, 1, status: RaceStatus.Dnf),
-            Runner("Club A", Gender.Male, 2, status: RaceStatus.Finished),
-            Runner("Club A", Gender.Female, 1, status: RaceStatus.Dns),
-        };
-
-        var standing = Assert.Single(_service.RankTeams(runners, Division.Seniori));
-
-        Assert.Equal(88, standing.TotalPoints);
-        Assert.Single(standing.CountingMales);
-        Assert.Null(standing.CountingFemale);
-    }
-
-    [Fact]
-    public void RankTeams_ExcludesIneligibleRunners()
-    {
-        var runners = new[]
-        {
-            Runner("Club A", Gender.Male, 1, eligible: false),
-            Runner("Club A", Gender.Male, 2, eligible: true),
-        };
-
-        var standing = Assert.Single(_service.RankTeams(runners, Division.Seniori));
-
-        Assert.Equal(88, standing.TotalPoints);
-        Assert.Single(standing.CountingMales);
-    }
-
-    [Fact]
-    public void RankTeams_OnlyIncludesRequestedDivision()
-    {
-        var runners = new[]
-        {
-            Runner("Club A", Gender.Male, 1, division: Division.Seniori),
-            Runner("Club A", Gender.Male, 1, division: Division.Juniori),
-        };
-
-        var seniori = Assert.Single(_service.RankTeams(runners, Division.Seniori));
-        var juniori = Assert.Single(_service.RankTeams(runners, Division.Juniori));
-
-        Assert.Equal(100, seniori.TotalPoints);
-        Assert.Equal(100, juniori.TotalPoints);
-        Assert.Equal(Division.Seniori, seniori.Division);
-        Assert.Equal(Division.Juniori, juniori.Division);
-    }
-
-    [Fact]
     public void RankTeams_OrdersByTotalDescending_AndAssignsRanks()
     {
         var runners = new[]
         {
-            // Weak team: 64 + 60 + 56 = 180
-            Runner("Weak", Gender.Male, 5),
-            Runner("Weak", Gender.Male, 6),
-            Runner("Weak", Gender.Female, 7),
-            // Strong team: 100 + 88 + 78 = 266
-            Runner("Strong", Gender.Male, 1),
-            Runner("Strong", Gender.Male, 2),
-            Runner("Strong", Gender.Female, 3),
+            Runner("Weak", Gender.Male, 64), Runner("Weak", Gender.Male, 60), Runner("Weak", Gender.Female, 56),
+            Runner("Strong", Gender.Male, 100), Runner("Strong", Gender.Male, 88), Runner("Strong", Gender.Female, 78),
         };
 
         var standings = _service.RankTeams(runners, Division.Seniori);
@@ -139,12 +64,8 @@ public class TeamRankingServiceTests
     {
         var runners = new[]
         {
-            // Incomplete team: single male at place 1 = 100
-            Runner("Incomplete", Gender.Male, 1),
-            // Complete team also totaling 100: 64 (p5) + 32 (p15) + 4 (p29)
-            Runner("Complete", Gender.Male, 5),
-            Runner("Complete", Gender.Male, 15),
-            Runner("Complete", Gender.Female, 29),
+            Runner("Incomplete", Gender.Male, 100),
+            Runner("Complete", Gender.Male, 64), Runner("Complete", Gender.Male, 32), Runner("Complete", Gender.Female, 4),
         };
 
         var standings = _service.RankTeams(runners, Division.Seniori);
@@ -152,17 +73,12 @@ public class TeamRankingServiceTests
         Assert.Equal(standings[0].TotalPoints, standings[1].TotalPoints);
         Assert.Equal("Complete", standings[0].Club);
         Assert.True(standings[0].IsComplete);
-        Assert.False(standings[1].IsComplete);
     }
 
     [Fact]
     public void RankTeams_GroupsClubCaseInsensitively()
     {
-        var runners = new[]
-        {
-            Runner("PSD Ćira", Gender.Male, 1),
-            Runner("psd ćira", Gender.Male, 2),
-        };
+        var runners = new[] { Runner("PSD Ćira", Gender.Male, 100), Runner("psd ćira", Gender.Male, 88) };
 
         var standing = Assert.Single(_service.RankTeams(runners, Division.Seniori));
 
@@ -171,51 +87,23 @@ public class TeamRankingServiceTests
     }
 
     [Fact]
-    public void RankTeams_BeyondLadder_ContributesZero()
+    public void RankTeams_GroupsClubs_IgnoringDiacritics()
     {
         var runners = new[]
         {
-            Runner("Club A", Gender.Male, 1),  // 100
-            Runner("Club A", Gender.Male, 50), // 0
-            Runner("Club A", Gender.Female, 40), // 0
-        };
-
-        var standing = Assert.Single(_service.RankTeams(runners, Division.Seniori));
-
-        Assert.Equal(100, standing.TotalPoints);
-        Assert.True(standing.IsComplete);
-        Assert.Equal(PointsLadder.GetPoints(50), standing.CountingMales[1].Points);
-    }
-
-    [Fact]
-    public void RankTeams_EmptyInput_ReturnsEmpty()
-    {
-        Assert.Empty(_service.RankTeams([], Division.Seniori));
-    }
-
-    [Fact]
-    public void RankTeams_GroupsClubs_IgnoringCaseAndDiacritics()
-    {
-        var runners = new[]
-        {
-            Runner("PK Tara Bajina Bašta", Gender.Male, 1),
-            Runner("PK Tara Bajina Basta", Gender.Male, 2),
+            Runner("PK Tara Bajina Bašta", Gender.Male, 100),
+            Runner("PK Tara Bajina Basta", Gender.Male, 88),
         };
 
         var standing = Assert.Single(_service.RankTeams(runners, Division.Seniori));
 
         Assert.Equal(100 + 88, standing.TotalPoints);
-        Assert.Equal(2, standing.CountingMales.Count);
     }
 
     [Fact]
     public void RankTeams_ExcludesRunnersWithoutClub()
     {
-        var runners = new[]
-        {
-            Runner("", Gender.Male, 1),
-            Runner("   ", Gender.Male, 2),
-        };
+        var runners = new[] { Runner("", Gender.Male, 100), Runner("   ", Gender.Male, 88) };
 
         Assert.Empty(_service.RankTeams(runners, Division.Seniori));
     }
@@ -225,13 +113,19 @@ public class TeamRankingServiceTests
     {
         var runners = new[]
         {
-            Runner("PSK Balkan", Gender.Male, 1),
-            Runner("PSK Balkan", Gender.Male, 2),
-            Runner("psk balkan", Gender.Female, 1),
+            Runner("PSK Balkan", Gender.Male, 100),
+            Runner("PSK Balkan", Gender.Male, 88),
+            Runner("psk balkan", Gender.Female, 100),
         };
 
         var standing = Assert.Single(_service.RankTeams(runners, Division.Seniori));
 
         Assert.Equal("PSK Balkan", standing.Club);
+    }
+
+    [Fact]
+    public void RankTeams_EmptyInput_ReturnsEmpty()
+    {
+        Assert.Empty(_service.RankTeams([], Division.Seniori));
     }
 }

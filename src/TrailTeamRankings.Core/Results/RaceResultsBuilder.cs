@@ -41,32 +41,25 @@ public static class RaceResultsBuilder
     private static DivisionResults BuildDivision(
         Division division, ResolvedField field, TeamRankingService ranking)
     {
-        var eligibleFinishers = field.Runners
-            .Where(runner =>
-                runner.Division == division &&
-                runner.Status == RaceStatus.Finished &&
-                runner.IsEligible &&
-                runner.Place >= 1)
-            .ToList();
+        // Score once (points by rank among eligible finishers); both the team
+        // standings and the individual standings read from the same scored set.
+        var scored = ChampionshipScorer.Score(field.Runners, division);
 
         return new DivisionResults
         {
             Division = division,
-            TeamStandings = ranking.RankTeams(field.Runners, division),
-            MaleIndividuals = BuildIndividuals(eligibleFinishers.Where(r => r.Gender == Gender.Male)),
-            FemaleIndividuals = BuildIndividuals(eligibleFinishers.Where(r => r.Gender == Gender.Female)),
+            TeamStandings = ranking.RankTeams(scored, division),
+            MaleIndividuals = BuildIndividuals(scored, Gender.Male),
+            FemaleIndividuals = BuildIndividuals(scored, Gender.Female),
             ExcludedRunners = field.Excluded.Where(e => e.Division == division).ToList(),
         };
     }
 
-    // Ranks eligible finishers of one gender by points (then place, then name) and
-    // assigns a 1-based placement.
-    private static IReadOnlyList<IndividualResult> BuildIndividuals(IEnumerable<RaceRunner> runners) =>
-        runners
-            .Select(runner => (runner, points: PointsLadder.GetPoints(runner.Place)))
-            .OrderByDescending(x => x.points)
-            .ThenBy(x => x.runner.Place)
-            .ThenBy(x => x.runner.Name, StringComparer.OrdinalIgnoreCase)
-            .Select((x, index) => new IndividualResult(index + 1, x.runner.Name, x.runner.Club, x.points))
+    private static IReadOnlyList<IndividualResult> BuildIndividuals(
+        IEnumerable<ScoredRunner> scored, Gender gender) =>
+        scored
+            .Where(runner => runner.Gender == gender)
+            .OrderBy(runner => runner.Rank)
+            .Select(runner => new IndividualResult(runner.Rank, runner.Name, runner.Club, runner.Points))
             .ToList();
 }

@@ -211,24 +211,66 @@ public class RunTraceResultsProviderTests
             () => provider.GetResultsAsync("https://runtrace.net/avala2026", cts.Token));
     }
 
+    [Fact]
+    public async Task GetResultsAsync_FetchesAllPages_WhenServerPaginated()
+    {
+        const string page1 =
+            """
+            <html><head><title>Paged Race</title></head><body>
+            <div id="table" data-server-results="1" data-url="/ajax/resultspage"
+                 data-event-id="516" data-race-view="1230" data-category-id="0" data-selected-lang="sr-Latn">
+              <div class="js-results-page-meta" data-page="1" data-page-size="1" data-page-count="2" data-total="2"></div>
+              <table id="results-table"><tbody>
+                <tr><td class="td-cat">1</td>
+                    <td class="js-full_name td-name">Runner One</td>
+                    <td class="td-category"><span class="td-category-color js-category">M Gen</span></td>
+                    <td class="js-team td-team"><span>Club A</span></td>
+                    <td class="js-status td-status-colors"><span class="status finished">Finished</span></td></tr>
+              </tbody></table>
+            </div></body></html>
+            """;
+
+        const string page2Json =
+            """
+            {"status":"OK","html":"<table id=\"results-table\"><tbody><tr><td class=\"td-cat\">2</td><td class=\"js-full_name td-name\">Runner Two</td><td class=\"td-category\"><span class=\"td-category-color js-category\">M Gen</span></td><td class=\"js-team td-team\"><span>Club B</span></td><td class=\"js-status td-status-colors\"><span class=\"status finished\">Finished</span></td></tr></tbody></table>"}
+            """;
+
+        var requested = new List<string>();
+        var handler = StubHandler.Route(request =>
+        {
+            requested.Add(request.RequestUri!.ToString());
+            var body = request.RequestUri!.AbsolutePath.Contains("resultspage") ? page2Json : page1;
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(body) };
+        });
+
+        var result = await new RunTraceResultsProvider(new HttpClient(handler))
+            .GetResultsAsync("https://runtrace.net/pagedrace");
+
+        Assert.True(result.IsValid);
+        Assert.Equal(["Runner One", "Runner Two"], result.Runners.Select(r => r.Name));
+        Assert.Contains(requested, u => u.Contains("resultspage") && u.Contains("race_view=1230") && u.Contains("page=2"));
+    }
+
     private static HttpResponseMessage Ok(string body) =>
         new(HttpStatusCode.OK) { Content = new StringContent(body) };
 
     private sealed class StubHandler : HttpMessageHandler
     {
-        private readonly Func<HttpResponseMessage> _responder;
+        private readonly Func<HttpRequestMessage, HttpResponseMessage> _responder;
 
-        private StubHandler(Func<HttpResponseMessage> responder) => _responder = responder;
+        private StubHandler(Func<HttpRequestMessage, HttpResponseMessage> responder) => _responder = responder;
 
-        public static StubHandler Returns(Func<HttpResponseMessage> responder) => new(responder);
+        public static StubHandler Returns(Func<HttpResponseMessage> responder) => new(_ => responder());
 
-        public static StubHandler Throws(Exception exception) => new(() => throw exception);
+        public static StubHandler Route(Func<HttpRequestMessage, HttpResponseMessage> responder) => new(responder);
+
+        public static StubHandler Throws(Exception exception) => new(_ => throw exception);
 
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return Task.FromResult(_responder());
+            return Task.FromResult(_responder(request));
         }
     }
 }

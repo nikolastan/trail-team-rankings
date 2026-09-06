@@ -18,26 +18,30 @@ differs from race to race**. A mapper hard-coded to one race's categories silent
 drops every runner in another race (they fall through to *UnknownCategory* and are
 excluded, so the rankings come up empty even though the scrape succeeded).
 
-## 2. Survey of live RunTrace categories (≈20 races, 2026 season)
+## 2. Measured category fields
 
-Sampled from `runtrace.net` in August 2026. Four broad schemes emerged:
+Full fields pulled from `runtrace.net` (all result pages — the app fetches every
+page, not just the first). Categories and counts are the complete finishers list.
 
-| Scheme | Example races | Category labels |
-|--------|---------------|-----------------|
-| **Federation (absolute + age)** | avala | `Apsolutna M`, `Apsolutna Ž`, `Veterani`, `Veteranke`, `Juniori`, `Juniorke` |
-| **Federation (senior/junior)** | rtanj, bor | `Seniori`, `Seniorke`, `Juniori`, `Juniorke` (bor adds age bands) |
-| **General only** | dayavala, nightavala, gucevo, plavikrug, radmilovac, rrun | `M Gen`, `Ž Gen` |
-| **General + age brackets** | cacak, kostolac, kovin, kraljevo, leskovac, sabac, svilajnac, zemun | `M Gen`/`Ž Gen` plus `M 40-49`, `Ž 30-39`, `M 60+`, … |
-| **Elite + age** | legionar | `M Elite`, `Ž Elite`, `M 18-30`, … |
+| Race (complete field) | Total | Category breakdown |
+|-----------------------|------:|--------------------|
+| **avala2026** | 217 | Apsolutna M 123, Apsolutna Ž 46, Veterani 32, Veteranke 12, Juniori 3, Juniorke 1 |
+| **rtanj2026** | 132 | Seniori 78, Seniorke 38, Juniori 10, Juniorke 6 |
+| **zlatibor2026** | 112 | Seniori 66, Seniorke 26, Veterani 15, Veteranke 5 |
+| **nightavala2026** | 81 | M Gen 58, Ž Gen 23 |
 
-Frequency of the most common labels across the sample: `M Gen` / `Ž Gen` appeared in
-**13** races each; age brackets (`M 40-49`, `M 50-59`, `Ž 40-49`, …) in most of the
-rest; the federation word-categories only in the two championship races.
+Two structural families appear:
 
-**The unifying pattern:** in every non-federation scheme, **gender is the leading
-token** — `M …` for men, `Ž …` for women — and the suffix (`Gen`, an age band,
-`Elite`) is just a *sub-category*, not a division. Only the federation races have a
-genuine junior/senior split.
+- **Word categories** (avala, rtanj, zlatibor): `Apsolutna M/Ž`, `Seniori/Seniorke`,
+  `Veterani/Veteranke`, `Juniori/Juniorke`. Gender is carried by the word (or the
+  `-ke` feminine ending / an `Ž`); the division by the word.
+- **Prefix categories** (nightavala): `M …` / `Ž …`, where the gender is the leading
+  token and the remainder (`Gen`, and on other RunTrace events an age band like
+  `40-49` or `Elite`) is a *sub-category*, not a division.
+
+Note that the **presence of a junior category varies even within the word family**:
+avala and rtanj have `Juniori`/`Juniorke`; zlatibor (seniors + veterans) has none.
+The prefix races have no junior category at all.
 
 ## 3. The classification rules (implemented)
 
@@ -74,15 +78,18 @@ Both are keyword-based, case- and whitespace-insensitive.
 | `M Elite` / `Ž Elite` | Male / Female | Seniori |
 | `Štafeta`, `Rekreativci` | — | **excluded** (UnknownCategory) |
 
-Effect measured on the real night-Avala race (`M Gen`/`Ž Gen`): before the rule,
-all 50 runners were *UnknownCategory* and nothing ranked; after, **0 unclassified**
-— all 50 classify into Seniori.
+Effect measured on the real night-Avala race (`M Gen`/`Ž Gen`, 81 finishers): before
+the rule, every runner was *UnknownCategory* and nothing ranked; after, **0
+unclassified** — all 81 classify into Seniori.
 
 ## 4. Coverage and deliberate exclusions
 
-- **Federation races** (avala, rtanj) get the full Seniori **and** Juniori split.
-- **General / age-group races** collapse to a single **Seniori** field; **Juniori is
-  empty** (those races have no junior category), which is correct for them.
+- **Races with a junior category** (avala, rtanj) get the full Seniori **and** Juniori
+  split.
+- **Races without a junior category** — the prefix races (`M/Ž Gen`) and word races
+  like zlatibor (seniors + veterans) — collapse to a single **Seniori** field, and
+  **Juniori is legitimately empty**. The app treats an empty division as "not
+  contested" (its export sheet/section is omitted, and its tab shows a count of 0).
 - **Non-individual categories** with no gender marker (relays `Štafeta`, recreational
   `Rekreativci`) are intentionally **excluded** — they are not part of the team
   competition.
@@ -94,17 +101,16 @@ all 50 runners were *UnknownCategory* and nothing ranked; after, **0 unclassifie
    several runners each score 100 for winning *their* bracket, so a club's team total
    can double-count strong age-group placings. This is the **Gen-vs-Kat** open
    question (PLAN §12 #1), amplified by age groups. Using overall place (`Gen`) would
-   avoid it — but many general races omit an overall-place column.
+   avoid it — but many prefix races omit an overall-place column.
 2. **"Non-junior ⇒ Seniori" is an assumption.** Reasonable for `Gen`, debatable for
    age-group or `Elite` events, which aren't really the federation 2M+1F team format.
-3. **Thin fields ⇒ few complete teams.** Team completion needs 2 eligible men + 1
-   eligible woman from one club. Women are a small share of finishers, so complete
-   teams are rare and **highly sensitive to the race date** (which decides medical
-   validity). Example — rtanj 2026: 6 senior women finished, ~4 eligible, and only
-   **one** club (PSK Mosor Niš) also had 2 eligible men, so at most **one** complete
-   team, and a slightly different race date yields **zero**. This is real data, not a
-   defect, but it means the team ranking is meaningful mainly for the larger
-   federation championship fields.
+3. **Thin women fields ⇒ few complete teams.** Team completion needs 2 eligible men +
+   1 eligible woman from one club. Women are a minority of finishers — e.g. zlatibor
+   31 of 112 (28%), rtanj 44 of 132 (33%) — and *eligible* women (registered with a
+   valid medical) are fewer still, spread across many clubs. Complete teams are
+   therefore relatively scarce and **sensitive to the race date**, which decides
+   medical validity. This is real data, not a defect, but it means the club-team
+   ranking is most meaningful for the larger federation championship fields.
 
 ## 6. Takeaway
 

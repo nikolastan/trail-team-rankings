@@ -149,6 +149,18 @@ public partial class MainViewModel : ObservableObject
     private string excludedHeader = "Excluded";
 
     [ObservableProperty]
+    private string senioriTeamsHeader = "Seniori teams";
+
+    [ObservableProperty]
+    private string junioriTeamsHeader = "Juniori teams";
+
+    [ObservableProperty]
+    private bool senioriTeamsEmpty;
+
+    [ObservableProperty]
+    private bool junioriTeamsEmpty;
+
+    [ObservableProperty]
     private Division individualsDivision = Division.Seniori;
 
     [ObservableProperty]
@@ -292,6 +304,10 @@ public partial class MainViewModel : ObservableObject
             MenIndividuals = [];
             WomenIndividuals = [];
             ExcludedHeader = "Excluded";
+            SenioriTeamsHeader = "Seniori teams";
+            JunioriTeamsHeader = "Juniori teams";
+            SenioriTeamsEmpty = false;
+            JunioriTeamsEmpty = false;
             return;
         }
 
@@ -305,6 +321,10 @@ public partial class MainViewModel : ObservableObject
             .ToList();
         ExcludedRunners = excluded;
         ExcludedHeader = $"Excluded ({excluded.Count})";
+        SenioriTeamsHeader = $"Seniori teams ({SenioriTeams.Count})";
+        JunioriTeamsHeader = $"Juniori teams ({JunioriTeams.Count})";
+        SenioriTeamsEmpty = SenioriTeams.Count == 0;
+        JunioriTeamsEmpty = JunioriTeams.Count == 0;
 
         UpdateIndividuals();
     }

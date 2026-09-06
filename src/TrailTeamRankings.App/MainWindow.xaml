@@ -72,7 +72,8 @@
 
         <!-- ===== Tabs (disabled until the registry loads) ===== -->
         <TabControl Grid.Row="2" Margin="0,8,0,0" IsEnabled="{Binding RegistryLoaded}">
-            <TabItem Header="Seniori teams">
+            <TabItem Header="{Binding SenioriTeamsHeader}">
+                <Grid>
                 <DataGrid ItemsSource="{Binding SenioriTeams}" AutoGenerateColumns="False" IsReadOnly="True"
                           CanUserAddRows="False" HeadersVisibility="Column" GridLinesVisibility="Horizontal">
                     <DataGrid.Columns>
@@ -85,9 +86,14 @@
                         <DataGridCheckBoxColumn Header="Complete" Binding="{Binding Complete}" Width="80" />
                     </DataGrid.Columns>
                 </DataGrid>
+                <TextBlock Text="No Seniori teams for this race." Foreground="Gray"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                           Visibility="{Binding SenioriTeamsEmpty, Converter={StaticResource BoolToVis}}" />
+                </Grid>
             </TabItem>
 
-            <TabItem Header="Juniori teams">
+            <TabItem Header="{Binding JunioriTeamsHeader}">
+                <Grid>
                 <DataGrid ItemsSource="{Binding JunioriTeams}" AutoGenerateColumns="False" IsReadOnly="True"
                           CanUserAddRows="False" HeadersVisibility="Column" GridLinesVisibility="Horizontal">
                     <DataGrid.Columns>
@@ -100,6 +106,10 @@
                         <DataGridCheckBoxColumn Header="Complete" Binding="{Binding Complete}" Width="80" />
                     </DataGrid.Columns>
                 </DataGrid>
+                <TextBlock Text="No Juniori teams for this race." Foreground="Gray"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                           Visibility="{Binding JunioriTeamsEmpty, Converter={StaticResource BoolToVis}}" />
+                </Grid>
             </TabItem>
 
             <TabItem Header="Individuals">

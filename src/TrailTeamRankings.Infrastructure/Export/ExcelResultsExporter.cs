@@ -43,8 +43,24 @@ public sealed class ExcelResultsExporter : IResultsExporter
         ArgumentNullException.ThrowIfNull(destination);
 
         using var workbook = new XLWorkbook();
-        WriteDivisionSheet(workbook, "Seniori", results.Seniori);
-        WriteDivisionSheet(workbook, "Juniori", results.Juniori);
+
+        // Only write a sheet for a division that was actually contested.
+        if (results.Seniori.HasRunners)
+        {
+            WriteDivisionSheet(workbook, "Seniori", results.Seniori);
+        }
+
+        if (results.Juniori.HasRunners)
+        {
+            WriteDivisionSheet(workbook, "Juniori", results.Juniori);
+        }
+
+        // A workbook must have at least one sheet.
+        if (!workbook.Worksheets.Any())
+        {
+            WriteDivisionSheet(workbook, "Seniori", results.Seniori);
+        }
+
         workbook.SaveAs(destination);
     }
 

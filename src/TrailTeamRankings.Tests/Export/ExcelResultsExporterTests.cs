@@ -113,4 +113,22 @@ public class ExcelResultsExporterTests
         Assert.True(juniori.Cell("O4").IsEmpty()); // muš 2
         Assert.True(juniori.Cell("P4").IsEmpty()); // žena 1
     }
+
+    [Fact]
+    public void Export_OmitsSheetForDivisionWithNoRunners()
+    {
+        var senioriOnly = RaceResultsBuilder.Build(
+            registry: [Athlete("Marko A"), Athlete("Ana A")],
+            scrapedRunners:
+            [
+                Scraped("Marko A", "Apsolutna M", "Club A", 1),
+                Scraped("Ana A", "Apsolutna Ž", "Club A", 1),
+            ],
+            raceDate: new DateOnly(2026, 9, 1));
+
+        using var workbook = Export(senioriOnly);
+
+        Assert.True(workbook.TryGetWorksheet("Seniori", out _));
+        Assert.False(workbook.TryGetWorksheet("Juniori", out _));
+    }
 }

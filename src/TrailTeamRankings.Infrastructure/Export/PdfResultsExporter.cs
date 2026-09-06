@@ -47,8 +47,24 @@ public sealed class PdfResultsExporter : IResultsExporter
                 page.Content().PaddingVertical(10).Column(column =>
                 {
                     column.Spacing(16);
-                    ComposeDivision(column.Item(), "SENIORI", results.Seniori);
-                    ComposeDivision(column.Item(), "JUNIORI", results.Juniori);
+
+                    var any = false;
+                    if (results.Seniori.HasRunners)
+                    {
+                        ComposeDivision(column.Item(), "SENIORI", results.Seniori);
+                        any = true;
+                    }
+
+                    if (results.Juniori.HasRunners)
+                    {
+                        ComposeDivision(column.Item(), "JUNIORI", results.Juniori);
+                        any = true;
+                    }
+
+                    if (!any)
+                    {
+                        column.Item().Text("No results to display.").Italic();
+                    }
                 });
 
                 page.Footer().AlignCenter().Text(text =>

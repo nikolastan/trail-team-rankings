@@ -26,12 +26,20 @@ public partial class MainWindow : Window
         _viewModel = new MainViewModel(
             new RegistryExcelReader(),
             new RunTraceResultsProvider(HttpClient),
+            new RunTraceRaceCatalog(HttpClient),
             new ExcelResultsExporter(),
             new PdfResultsExporter(),
             new JsonUserSettingsStore());
         DataContext = _viewModel;
 
-        Loaded += (_, _) => _viewModel.TryLoadSavedRegistry();
+        Loaded += (_, _) =>
+        {
+            _viewModel.TryLoadSavedRegistry();
+            if (_viewModel.LoadRacesCommand.CanExecute(null))
+            {
+                _viewModel.LoadRacesCommand.Execute(null);
+            }
+        };
         Closing += (_, _) => _viewModel.SaveSettings();
     }
 

@@ -19,6 +19,7 @@ public partial class MainViewModel : ObservableObject
 {
     private readonly IRegistryReader _registryReader;
     private readonly IRaceResultsProvider _resultsProvider;
+    private readonly IRaceCatalog _raceCatalog;
     private readonly IResultsExporter _excelExporter;
     private readonly IResultsExporter _pdfExporter;
     private readonly IUserSettingsStore _settingsStore;
@@ -30,12 +31,14 @@ public partial class MainViewModel : ObservableObject
     public MainViewModel(
         IRegistryReader registryReader,
         IRaceResultsProvider resultsProvider,
+        IRaceCatalog raceCatalog,
         IResultsExporter excelExporter,
         IResultsExporter pdfExporter,
         IUserSettingsStore settingsStore)
     {
         _registryReader = registryReader;
         _resultsProvider = resultsProvider;
+        _raceCatalog = raceCatalog;
         _excelExporter = excelExporter;
         _pdfExporter = pdfExporter;
         _settingsStore = settingsStore;
@@ -105,6 +108,17 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(RefreshCommand))]
     private string raceUrl = "https://runtrace.net/avala2026?category_id=&race_id=1123&selected_lang=sr-Latn";
+
+    /// <summary>Races offered in the picker (Serbian trail races from RunTrace).</summary>
+    [ObservableProperty]
+    private IReadOnlyList<RaceListing> races = [];
+
+    /// <summary>The race chosen in the picker; selecting one fills <see cref="RaceUrl"/>.</summary>
+    [ObservableProperty]
+    private RaceListing? selectedRace;
+
+    [ObservableProperty]
+    private bool racesLoaded;
 
     [ObservableProperty]
     private DateTime raceDate = DateTime.Today;
@@ -208,6 +222,54 @@ public partial class MainViewModel : ObservableObject
         catch (Exception ex)
         {
             RegistryLoaded = false;
+            ErrorMessage = ex.Message;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    // Picking a race fills in the URL (and previews its date); the scraper still
+    // confirms the exact date on Refresh. Editing the URL by hand stays possible.
+    partial void OnSelectedRaceChanged(RaceListing? value)
+    {
+        if (value is null)
+        {
+            return;
+        }
+
+        RaceUrl = value.ResultsUrl;
+        if (value.Date is { } date)
+        {
+            RaceDate = date.ToDateTime(TimeOnly.MinValue);
+        }
+    }
+
+    [RelayCommand]
+    private async Task LoadRaces()
+    {
+        ErrorMessage = null;
+        IsBusy = true;
+        StatusMessage = "Loading races…";
+        try
+        {
+            var result = await _raceCatalog.GetRacesAsync();
+            if (!result.IsValid)
+            {
+                ErrorMessage = "Could not load races: " + string.Join(" ", result.Errors);
+                return;
+            }
+
+            Races = result.Races;
+            RacesLoaded = true;
+            // Reflect the current URL in the picker if it points at a known race.
+            SelectedRace = result.Races.FirstOrDefault(
+                race => string.Equals(race.ResultsUrl, RaceUrl, StringComparison.OrdinalIgnoreCase));
+            StatusMessage = $"{result.Races.Count} races loaded.";
+        }
+        catch (Exception ex)
+        {
             ErrorMessage = ex.Message;
         }
         finally

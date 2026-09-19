@@ -22,7 +22,7 @@ Desktop WPF application that scrapes public race results from RunTrace, validate
 | Input | Purpose | Gate |
 |-------|---------|------|
 | **Registry Excel** | Federation athlete register — eligibility (medical check) | **Mandatory** — rankings disabled until loaded and validated |
-| **RunTrace URL** | Live or final race results | Required to compute rankings |
+| **Race** | Picked from a RunTrace catalog (Serbian trail races, status shown); a raw URL can still be entered under "Advanced" | Required to compute rankings |
 | **Race date** | Compare against medical `valid until` dates | Required for eligibility |
 
 Example registry file: `_Базни камп Регистар спортиста - 2026-05-29 11-43 .xlsx`
@@ -283,8 +283,8 @@ trail-team-rankings/
 
 | Project | Responsibility |
 |---------|----------------|
-| **Core** | `RaceRunner`, `ScrapedRunner`, `RegisteredAthlete`, `MedicalClearance`, `TeamStanding`, `DivisionResults`, `PointsLadder`, `TeamRankingService`, `CategoryDivisionMapper`, `GenderMapper`, `RaceStatusParser`, `MedicalClearanceParser`, status/eligibility enums |
-| **Infrastructure** | `RunTraceResultsProvider` (AngleSharp), `RegistryExcelReader` (ClosedXML), `ExcelResultsExporter`, `PdfResultsExporter` |
+| **Core** | `RaceRunner`, `ScrapedRunner`, `RegisteredAthlete`, `MedicalClearance`, `TeamStanding`, `DivisionResults`, `PointsLadder`, `TeamRankingService`, `RaceListing`/`IRaceCatalog`, `CategoryDivisionMapper`, `GenderMapper`, `RaceStatusParser`, `MedicalClearanceParser`, status/eligibility enums |
+| **Infrastructure** | `RunTraceResultsProvider` (AngleSharp), `RunTraceRaceCatalog` (race picker list), `RegistryExcelReader` (ClosedXML), `ExcelResultsExporter`, `PdfResultsExporter` |
 | **App** | Views, ViewModels, setup gate, tabs, export dialog, `DispatcherTimer` for live poll |
 | **Tests** | Ranking rules, points ladder, eligibility, edge cases (no network in CI) |
 

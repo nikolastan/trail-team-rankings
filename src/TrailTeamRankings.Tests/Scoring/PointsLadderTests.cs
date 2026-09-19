@@ -22,9 +22,9 @@ public class PointsLadderTests
     [InlineData(32)]
     [InlineData(50)]
     [InlineData(1000)]
-    public void GetPoints_ReturnsZero_BeyondLadder(int place)
+    public void GetPoints_ReturnsParticipationPoint_BeyondLadder(int place)
     {
-        Assert.Equal(0, PointsLadder.GetPoints(place));
+        Assert.Equal(1, PointsLadder.GetPoints(place));
     }
 
     [Theory]

@@ -95,7 +95,9 @@ Place → points for places 1–31:
 28, 26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 1
 ```
 
-Place 32+ → **0 points** (confirm with mentor).
+Place 32+ → **1 point** (participation) — confirmed against the mentor's results. Points
+are awarded by **rank among eligible finishers** (per division and gender), not by the raw
+category place, so filtered-out runners leave no gaps.
 
 ### 3.2 Team scoring (Seniori and Juniori — identical logic)
 
@@ -427,7 +429,7 @@ Architecture should allow additional `IRaceResultsProvider` implementations late
 |---|----------|----------------------------|
 | 1 | Points from **Gen** or **Kat**? | Category place (Kat) |
 | 2 | Veterani / Veteranke under **Seniori**? | Yes |
-| 3 | Place 32+ → 0 points? | Yes |
+| 3 | Place 32+ → 0 points? | **Resolved: no — 1 point (participation), by rank among eligible** |
 | 4 | Registry export format always identical? | Yes — validate row 2 headers |
 | 5 | PDF content: teams only or full report? | Teams + brief individual summary |
 

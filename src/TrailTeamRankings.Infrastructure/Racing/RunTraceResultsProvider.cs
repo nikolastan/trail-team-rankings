@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using AngleSharp.Dom;
 using AngleSharp.Html.Parser;
 using TrailTeamRankings.Core.Models;
@@ -83,7 +84,8 @@ public sealed class RunTraceResultsProvider : IRaceResultsProvider
                 "The RunTrace results table contained no runner rows (the layout may have changed).");
         }
 
-        return RaceScrapeResult.Success(runners, NullIfEmpty(document.Title?.Trim() ?? string.Empty));
+        return RaceScrapeResult.Success(
+            runners, NullIfEmpty(document.Title?.Trim() ?? string.Empty), ExtractRaceDate(document));
     }
 
     /// <summary>Parses a single RunTrace results HTML blob. Pure — no network.</summary>
@@ -108,7 +110,8 @@ public sealed class RunTraceResultsProvider : IRaceResultsProvider
                 "The RunTrace results table contained no runner rows (the layout may have changed).");
         }
 
-        return RaceScrapeResult.Success(runners, NullIfEmpty(document.Title?.Trim() ?? string.Empty));
+        return RaceScrapeResult.Success(
+            runners, NullIfEmpty(document.Title?.Trim() ?? string.Empty), ExtractRaceDate(document));
     }
 
     private async Task AddRemainingPagesAsync(
@@ -206,6 +209,29 @@ public sealed class RunTraceResultsProvider : IRaceResultsProvider
         using var response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    // The event date shown on the page, e.g. <span class="date">18.04.2026. 11:00</span>.
+    private static DateOnly? ExtractRaceDate(IDocument document)
+    {
+        foreach (var element in document.QuerySelectorAll(".date"))
+        {
+            var match = Regex.Match(element.TextContent, @"(\d{1,2})\.(\d{1,2})\.(\d{4})");
+            if (!match.Success)
+            {
+                continue;
+            }
+
+            var day = int.Parse(match.Groups[1].Value);
+            var month = int.Parse(match.Groups[2].Value);
+            var year = int.Parse(match.Groups[3].Value);
+            if (month is >= 1 and <= 12 && day >= 1 && day <= DateTime.DaysInMonth(year, month))
+            {
+                return new DateOnly(year, month, day);
+            }
+        }
+
+        return null;
     }
 
     private static void AddRows(IElement table, List<ScrapedRunner> runners)

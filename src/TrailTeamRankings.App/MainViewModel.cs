@@ -231,6 +231,12 @@ public partial class MainViewModel : ObservableObject
                 return;
             }
 
+            // Prefer the event date parsed from the page; the entered date is the fallback.
+            if (scrape.RaceDate is { } scrapedDate)
+            {
+                RaceDate = scrapedDate.ToDateTime(TimeOnly.MinValue);
+            }
+
             var raceDateOnly = DateOnly.FromDateTime(RaceDate);
             var built = await Task.Run(() =>
                 RaceResultsBuilder.Build(_athletes, scrape.Runners, raceDateOnly, scrape.RaceTitle));

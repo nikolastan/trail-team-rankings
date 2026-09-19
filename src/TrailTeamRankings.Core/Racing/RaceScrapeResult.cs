@@ -4,7 +4,7 @@ namespace TrailTeamRankings.Core.Racing;
 
 /// <summary>
 /// Outcome of scraping a race results page: the raw scraped runners plus
-/// metadata (race title, when it was scraped), or a failure carrying
+/// metadata (race title, race date, when it was scraped), or a failure carrying
 /// human-readable messages. Mirrors the shape of <c>RegistryReadResult</c>.
 /// </summary>
 public sealed class RaceScrapeResult
@@ -14,12 +14,14 @@ public sealed class RaceScrapeResult
         IReadOnlyList<ScrapedRunner> runners,
         IReadOnlyList<string> errors,
         string? raceTitle,
+        DateOnly? raceDate,
         DateTimeOffset scrapedAt)
     {
         IsValid = isValid;
         Runners = runners;
         Errors = errors;
         RaceTitle = raceTitle;
+        RaceDate = raceDate;
         ScrapedAt = scrapedAt;
     }
 
@@ -35,13 +37,16 @@ public sealed class RaceScrapeResult
     /// <summary>Page title, used as a race label in the UI when available.</summary>
     public string? RaceTitle { get; }
 
+    /// <summary>Event date parsed from the page, when present — used to pre-fill the race date.</summary>
+    public DateOnly? RaceDate { get; }
+
     /// <summary>When the scrape completed (for the "last updated" indicator).</summary>
     public DateTimeOffset ScrapedAt { get; }
 
     public static RaceScrapeResult Success(
-        IReadOnlyList<ScrapedRunner> runners, string? raceTitle = null) =>
-        new(isValid: true, runners, [], raceTitle, DateTimeOffset.Now);
+        IReadOnlyList<ScrapedRunner> runners, string? raceTitle = null, DateOnly? raceDate = null) =>
+        new(isValid: true, runners, [], raceTitle, raceDate, DateTimeOffset.Now);
 
     public static RaceScrapeResult Failure(params string[] errors) =>
-        new(isValid: false, [], errors, null, DateTimeOffset.Now);
+        new(isValid: false, [], errors, null, null, DateTimeOffset.Now);
 }

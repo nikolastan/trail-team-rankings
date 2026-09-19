@@ -72,14 +72,14 @@ public class ChampionshipScorerTests
     }
 
     [Fact]
-    public void Score_BeyondLadder_ScoresZero()
+    public void Score_BeyondLadder_ScoresParticipationPoint()
     {
-        // 32 eligible men; the current ladder ends at 31, so rank 32 scores 0.
+        // 32 eligible men; the ladder ends at 31, and rank 32 earns 1 (participation).
         var runners = Enumerable.Range(1, 32).Select(p => Runner(Gender.Male, p, name: $"M{p}")).ToArray();
 
         var scored = ChampionshipScorer.Score(runners, Division.Seniori);
 
         Assert.Equal(1, scored[30].Points);  // rank 31
-        Assert.Equal(0, scored[31].Points);  // rank 32
+        Assert.Equal(1, scored[31].Points);  // rank 32 → participation point
     }
 }

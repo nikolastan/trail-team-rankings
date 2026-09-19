@@ -251,6 +251,26 @@ public class RunTraceResultsProviderTests
         Assert.Contains(requested, u => u.Contains("resultspage") && u.Contains("race_view=1230") && u.Contains("page=2"));
     }
 
+    [Fact]
+    public void Parse_ExtractsRaceDate()
+    {
+        const string html =
+            """
+            <html><body>
+            <span class="label">Početak događaja:</span>
+            <span class="date">18.04.2026. 11:00</span>
+            <table id="results-table"><tbody>
+              <tr><td class="js-full_name td-name">Ana Anić</td>
+                  <td class="td-category"><span class="js-category">Seniorke</span></td></tr>
+            </tbody></table>
+            </body></html>
+            """;
+
+        var result = new RunTraceResultsProvider(new HttpClient()).Parse(html);
+
+        Assert.Equal(new DateOnly(2026, 4, 18), result.RaceDate);
+    }
+
     private static HttpResponseMessage Ok(string body) =>
         new(HttpStatusCode.OK) { Content = new StringContent(body) };
 

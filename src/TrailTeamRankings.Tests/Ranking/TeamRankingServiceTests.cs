@@ -76,6 +76,44 @@ public class TeamRankingServiceTests
     }
 
     [Fact]
+    public void RankTeams_ListsIncompleteTeamsAfterComplete_EvenWithHigherTotal()
+    {
+        var runners = new[]
+        {
+            // Incomplete: one strong male, no counting female.
+            Runner("SoloStar", Gender.Male, 100),
+            // Complete but lower total.
+            Runner("FullTeam", Gender.Male, 40), Runner("FullTeam", Gender.Male, 30), Runner("FullTeam", Gender.Female, 20),
+        };
+
+        var standings = _service.RankTeams(runners, Division.Seniori);
+
+        Assert.Equal("FullTeam", standings[0].Club);
+        Assert.True(standings[0].IsComplete);
+        Assert.Equal(1, standings[0].Rank);
+
+        Assert.Equal("SoloStar", standings[1].Club);
+        Assert.False(standings[1].IsComplete);
+        Assert.Equal(0, standings[1].Rank); // listed after, unranked
+    }
+
+    [Fact]
+    public void RankTeams_NumbersOnlyCompleteTeams()
+    {
+        var runners = new[]
+        {
+            Runner("A", Gender.Male, 100), Runner("A", Gender.Male, 88), Runner("A", Gender.Female, 78),
+            Runner("B", Gender.Male, 64), Runner("B", Gender.Male, 56), Runner("B", Gender.Female, 40),
+            Runner("Half", Gender.Male, 90), Runner("Half", Gender.Male, 50), // no female → incomplete
+        };
+
+        var standings = _service.RankTeams(runners, Division.Seniori);
+
+        Assert.Equal([1, 2, 0], standings.Select(s => s.Rank));
+        Assert.Equal(["A", "B", "Half"], standings.Select(s => s.Club));
+    }
+
+    [Fact]
     public void RankTeams_GroupsClubCaseInsensitively()
     {
         var runners = new[] { Runner("PSD Ćira", Gender.Male, 100), Runner("psd ćira", Gender.Male, 88) };

@@ -9,6 +9,8 @@ namespace TrailTeamRankings.Core.Ranking;
 /// the points of its top <see cref="CountingMaleCount"/> males and
 /// <see cref="CountingFemaleCount"/> female(s). The scoring (points by rank among
 /// eligible finishers) is done upstream by <see cref="ChampionshipScorer"/>.
+/// Complete teams are ranked; incomplete teams (a missing counting slot) are
+/// listed after them, unranked.
 /// </summary>
 public sealed class TeamRankingService
 {
@@ -32,9 +34,16 @@ public sealed class TeamRankingService
 
         standings.Sort(CompareStandings);
 
-        for (var index = 0; index < standings.Count; index++)
+        // Only complete teams contend for a championship placing, so only they are
+        // numbered (1..). Incomplete teams sort after every complete one and are
+        // listed unranked (Rank stays 0), matching how the results are published.
+        var rank = 0;
+        foreach (var standing in standings)
         {
-            standings[index].Rank = index + 1;
+            if (standing.IsComplete)
+            {
+                standing.Rank = ++rank;
+            }
         }
 
         return standings;
@@ -79,18 +88,19 @@ public sealed class TeamRankingService
 
     private static int CompareStandings(TeamStanding a, TeamStanding b)
     {
-        // Higher total points ranks first.
-        var byTotal = b.TotalPoints.CompareTo(a.TotalPoints);
-        if (byTotal != 0)
-        {
-            return byTotal;
-        }
-
-        // Teams that filled every counting slot outrank incomplete ones on a tie.
+        // Complete teams (every counting slot filled) rank ahead of all incomplete
+        // teams; incomplete teams are only listed afterwards, never interleaved.
         var byComplete = b.IsComplete.CompareTo(a.IsComplete);
         if (byComplete != 0)
         {
             return byComplete;
+        }
+
+        // Within a completeness group, higher total points ranks first.
+        var byTotal = b.TotalPoints.CompareTo(a.TotalPoints);
+        if (byTotal != 0)
+        {
+            return byTotal;
         }
 
         // Then the club with the single best counting result wins.

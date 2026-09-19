@@ -109,6 +109,7 @@ For each club, within each division:
 4. **Team total** = sum of those three point values
 5. Rank teams by total — **higher is better**
 6. Missing gender slots count as **0** for that slot
+7. Only **complete** teams (all 3 slots filled) are ranked; **incomplete** teams are listed after the ranked teams, unranked
 
 ### 3.3 Senior / Junior split
 
@@ -432,6 +433,7 @@ Architecture should allow additional `IRaceResultsProvider` implementations late
 | 3 | Place 32+ → 0 points? | **Resolved: no — 1 point (participation), by rank among eligible** |
 | 4 | Registry export format always identical? | Yes — validate row 2 headers |
 | 5 | PDF content: teams only or full report? | Teams + brief individual summary |
+| 6 | Rank incomplete teams? | **Resolved: no — complete teams ranked, incomplete listed after, unranked** |
 
 Document answers in this file or a future `docs/SDD.md` when confirmed.
 

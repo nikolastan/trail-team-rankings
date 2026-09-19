@@ -131,7 +131,7 @@ public sealed class PdfResultsExporter : IResultsExporter
 
             foreach (var team in teams)
             {
-                DataCell(table.Cell(), team.Rank.ToString());
+                DataCell(table.Cell(), team.Rank > 0 ? team.Rank.ToString() : "");
                 DataCell(table.Cell(), team.Club);
                 DataCell(table.Cell(), Slot(team.CountingMales, 0));
                 DataCell(table.Cell(), Slot(team.CountingMales, 1));

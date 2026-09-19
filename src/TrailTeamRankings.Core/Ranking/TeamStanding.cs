@@ -22,7 +22,10 @@ public sealed class TeamStanding
     /// <summary>True when the club filled all counting slots for both genders.</summary>
     public required bool IsComplete { get; init; }
 
-    /// <summary>1-based standing position within the division.</summary>
+    /// <summary>
+    /// 1-based standing position among complete teams; 0 for an incomplete team,
+    /// which is listed after the ranked teams without a placing.
+    /// </summary>
     public int Rank { get; set; }
 
     public int TotalPoints =>

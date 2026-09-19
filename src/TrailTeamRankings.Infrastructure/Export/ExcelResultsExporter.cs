@@ -128,7 +128,11 @@ public sealed class ExcelResultsExporter : IResultsExporter
         var row = FirstDataRow;
         foreach (var team in teams)
         {
-            sheet.Cell(row, ColTeamRank).Value = team.Rank;
+            if (team.Rank > 0)
+            {
+                sheet.Cell(row, ColTeamRank).Value = team.Rank;
+            }
+
             sheet.Cell(row, ColTeamClub).Value = team.Club;
             if (team.CountingMales.Count > 0)
             {

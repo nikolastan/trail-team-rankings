@@ -5,10 +5,11 @@ namespace TrailTeamRankings.App;
 
 /// <summary>
 /// Flattened team standing for the DataGrid: the three counting slots as display
-/// strings (points, or "—" when a slot is empty) plus the total.
+/// strings (points, or "—" when a slot is empty) plus the total. <see cref="Rank"/>
+/// is blank for an incomplete team, which is listed after the ranked teams.
 /// </summary>
 public sealed record TeamRow(
-    int Rank,
+    string Rank,
     string Club,
     string Male1,
     string Male2,
@@ -17,7 +18,7 @@ public sealed record TeamRow(
     bool Complete)
 {
     public static TeamRow From(TeamStanding standing) => new(
-        standing.Rank,
+        standing.Rank > 0 ? standing.Rank.ToString() : "",
         standing.Club,
         Slot(standing.CountingMales, 0),
         Slot(standing.CountingMales, 1),
